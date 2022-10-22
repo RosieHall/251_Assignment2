@@ -6,7 +6,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class MemAppender extends AppenderSkeleton {
-    private static MemAppender instance = new MemAppender();
+    private static final MemAppender instance = new MemAppender();
+
     private List<LoggingEvent> eventList;
     private int maxSize;
     private long numDiscarded;
@@ -21,7 +22,9 @@ public class MemAppender extends AppenderSkeleton {
 
     public void setMaxSize(int newSize) {
         maxSize = newSize;
-        discardExcessLogs();
+        if (eventList != null) {
+            discardExcessLogs();
+        }
     }
 
     public long getDiscardedLogCount() {
@@ -33,15 +36,21 @@ public class MemAppender extends AppenderSkeleton {
     }
 
     public List<LoggingEvent> getCurrentLogs() {
+        validateEventList();
         return Collections.unmodifiableList(eventList);
     }
 
     public List<String> getEventStrings() {
+        validateEventList();
+        validateLayout();
         //return eventList.stream().map(e -> getLayout().format(e)).collect(Collectors.toList());
         return null; // TODO
     }
 
     public void printLogs() {
+        validateEventList();
+        validateLayout();
+
         for (LoggingEvent e: eventList) {
             System.out.println(getLayout().format(e));
         }
@@ -50,14 +59,29 @@ public class MemAppender extends AppenderSkeleton {
     }
 
     private void discardExcessLogs() {
+        validateEventList();
+
         while (eventList.size() > maxSize) {
             eventList.remove(0);
             numDiscarded++;
         }
     }
 
+    private void validateLayout() {
+        if (getLayout() == null) {
+            throw new IllegalStateException("No layout set on MemAppender");
+        }
+    }
+
+    private void validateEventList() {
+        if (eventList == null) {
+            throw new IllegalStateException("No event list set on MemAppender");
+        }
+    }
+
     @Override
     protected void append(LoggingEvent loggingEvent) {
+        validateEventList();
         eventList.add(loggingEvent);
         discardExcessLogs();
     }
