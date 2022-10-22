@@ -3,7 +3,6 @@ import org.apache.log4j.spi.LoggingEvent;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class MemAppender extends AppenderSkeleton {
     private static final MemAppender instance = new MemAppender();
@@ -27,11 +26,22 @@ public class MemAppender extends AppenderSkeleton {
         }
     }
 
+    public void reset() {
+        layout = null;
+        eventList = null;
+        maxSize = 0;
+        numDiscarded = 0;
+    }
+
     public long getDiscardedLogCount() {
         return numDiscarded;
     }
 
     public void setEventList(List<LoggingEvent> newList) {
+        if (newList == null) {
+            throw new IllegalArgumentException("Tried to set null event list on MemAppender");
+        }
+
         eventList = newList;
     }
 
@@ -43,8 +53,7 @@ public class MemAppender extends AppenderSkeleton {
     public List<String> getEventStrings() {
         validateEventList();
         validateLayout();
-        //return eventList.stream().map(e -> getLayout().format(e)).collect(Collectors.toList());
-        return null; // TODO
+        return eventList.stream().map(e -> getLayout().format(e)).toList();
     }
 
     public void printLogs() {
@@ -52,7 +61,15 @@ public class MemAppender extends AppenderSkeleton {
         validateLayout();
 
         for (LoggingEvent e: eventList) {
-            System.out.println(getLayout().format(e));
+            System.out.print(getLayout().format(e));
+            if (getLayout().ignoresThrowable()) {
+                String[] throwable = e.getThrowableStrRep();
+                if (throwable != null) {
+                    for (String s: throwable) {
+                        System.out.println(s);
+                    }
+                }
+            }
         }
 
         eventList.clear();
